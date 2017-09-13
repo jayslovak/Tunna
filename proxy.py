@@ -63,7 +63,7 @@ def main():
 	advancedGroup.add_option('-s','--start-ping', help='Start the pinging thread first - some services send data first (eg. SSH)', dest='start_p_thread', action='store_true', default=Defaults['start_p_thread'])
 	advancedGroup.add_option('-c','--verify-server-cert', help='Verify Server Certificate', dest='start_p_thread', action='store_false', default=Defaults['ignoreServerCert'])
 	advancedGroup.add_option('-C','--cookie', help='Request cookies', dest='cookie', action='store')
-        advancedGroup.add_option('-t','--authentication', help='Basic authentication (username:password or \'-\' for stdin input', dest='bauth', action='store', default='no')
+	advancedGroup.add_option('-t','--authentication', help='Basic authentication (username:password or \'-\' for stdin input', dest='bauth', action='store', default='no')
 
 	parser.add_option_group(advancedGroup)
 
@@ -100,15 +100,15 @@ def main():
 			proxy_digest_handler = urllib2.ProxyDigestAuthHandler(password_mgr)
 
 			options['upProxyAuth']=[proxy_handler,proxy_basic_handler,proxy_digest_handler]
-        if not options['bauth'] == 'no':            # Basic authentication
-            if options['bauth'] == '-':
-                username=raw_input("Basic Authentication\nUsername:")
-                from getpass import getpass
-                passwd=getpass("Password:")
-            else:
-                username, passwd = options['bauth'].split(':')
-
-            options['bauth'] = b64encode('%s:%s' % (username, passwd))
+	if not options['bauth'] == 'no':            # Basic authentication
+		if options['bauth'] == '-':
+			username=raw_input("Basic Authentication\nUsername:")
+			from getpass import getpass
+			passwd=getpass("Password:")
+		else:
+			username, passwd = options['bauth'].split(':')
+    
+		options['bauth'] = b64encode('%s:%s' % (username, passwd))
 
 	try:
 		T=TunnaClient(options)

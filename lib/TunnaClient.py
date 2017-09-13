@@ -183,8 +183,7 @@ class TunnaClient():
 			remote_port = options['remote_port']
 			verbose = options['verbose']
 			self.cookie = options['cookie']
-                        self.bauth = options['bauth']
-
+			self.bauth = options['bauth']
 			self.url=url
 
 			if verbose:
@@ -252,11 +251,11 @@ class TunnaClient():
 			if headers:  kargs['headers']=headers
 			else: kargs['headers']={'Content-Type':'application/octet-stream'}
 
-                        if self.options['cookie']:
-                            kargs['headers'].update({'Cookie':self.cookie})
+			if self.options['cookie']:
+				kargs['headers'].update({'Cookie':self.cookie})
 
 			if self.options['bauth']:
-                            kargs['headers'].update({'Authorization': "Basic %s" % self.bauth})
+				kargs['headers'].update({'Authorization': "Basic %s" % self.bauth})
 
 			#Make Request
 			f=opener.open(urllib2.Request(**kargs))
