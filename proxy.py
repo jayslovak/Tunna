@@ -108,7 +108,7 @@ def main():
 		else:
 			username, passwd = options['bauth'].split(':')
     
-		options['bauth'] = b64encode('%s:%s' % (username, passwd))
+		options['bauth'] = b64encode(bytes('%s:%s' % (username, passwd), "utf-8")).decode()
 
 	try:
 		T=TunnaClient(options)
