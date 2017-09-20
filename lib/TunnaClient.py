@@ -329,5 +329,5 @@ class TunnaClient():
 			sys.stdout.flush()
 
 		def __del__(self):
-			if hasattr(self, 't') and self.t.isAlive:self.t._Thread__stop()
+			if hasattr(self, 't') and self.t.isAlive:self.t._stop()
 
