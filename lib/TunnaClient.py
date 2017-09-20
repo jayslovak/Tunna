@@ -285,7 +285,7 @@ class TunnaClient():
 			if remote_ip:	url+="&ip="+str(remote_ip)
 			if socks: 		url+="&socks"
 			#send options
-			resp = self.HTTPreq(url)
+			resp = self.HTTPreq(url).decode()
 
 			if (resp[:4] == '[OK]'):	#If ok is received (non-php webshell): Thread not needed
 				print '[-] Keep-alive thread not required'
