@@ -12,25 +12,25 @@
 #Tested with Python 2.6.5
 
 import time
-import BaseHTTPServer
-from urlparse import urlparse, parse_qs, parse_qsl
+import http.server
+from urllib.parse import urlparse, parse_qs, parse_qsl
 import random
-import Cookie
+import http.cookies
 import socket
 import select 
 import sys,os
 import time
 import getopt, struct
-import threading, thread
+import threading, _thread
 import ssl
 import tempfile
-import SocketServer
+import socketserver
 
 from lib.SocksServer import SocksServer
 
 from settings import Webserver_Defaults as Defaults
 
-class MultiThreadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+class MultiThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass
 
 class WebServer():
@@ -58,7 +58,7 @@ class WebServer():
 				self.certFile.flush()
 				httpd.socket = ssl.wrap_socket (httpd.socket, certfile=self.certFile.name, server_side=True,ssl_version=ssl.PROTOCOL_TLSv1)
 
-			print "[W]",time.asctime(), "Web Server Starts - %s:%s" % (hostname, portNumber), "(SSL Server)" if options['ssl'] else ''
+			print("[W]",time.asctime(), "Web Server Starts - %s:%s" % (hostname, portNumber), "(SSL Server)" if options['ssl'] else '')
 
 			httpd.serve_forever()
 				
@@ -70,26 +70,26 @@ class WebServer():
 			self.sslFile.close()
 		httpd.server_close()
 		
-		print "[W] ",time.asctime(), "Web Server Stops - %s:%s" % (hostname, portNumber)
+		print("[W] ",time.asctime(), "Web Server Stops - %s:%s" % (hostname, portNumber))
 	
 	def cleanup(self,sessions):
-		print "[-] Cleaning up"
+		print("[-] Cleaning up")
 		for sessionId in sessions:
 			session=sessions[sessionId]
 			if 'SocksProcess' in session:
-				print "[-] Killing process", session['SocksProcess'].pid
+				print("[-] Killing process", session['SocksProcess'].pid)
 				session['SocksProcess'].kill()
 				time.sleep(1)
 			if 'file' in session:
-				print "[-] Removing File", session['file'].name
+				print("[-] Removing File", session['file'].name)
 				os.remove(session['file'].name)
 			if 'SocksThread' in session:
-				print "[-] Killing Socks Thread"
+				print("[-] Killing Socks Thread")
 				t=session['SocksThread']
 				t._Thread__stop()
 				t.join()
 	
-	class WebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	class WebHandler(http.server.BaseHTTPRequestHandler):
 		debug=0
 		bufferSize = 8192
 		sessions=None
@@ -103,9 +103,9 @@ class WebServer():
 		def send(self,data="", responseCode=200):
 			self.send_response(responseCode)
 			
-			for morsel in self.cookie.values():	#Add cookie
+			for morsel in list(self.cookie.values()):	#Add cookie
 				self.send_header('Set-Cookie', morsel.output(header='').lstrip())
-			for (k,v) in self.resp_headers.items():
+			for (k,v) in list(self.resp_headers.items()):
 				self.send_header(k,v)
 			self.end_headers()
 			
@@ -135,7 +135,7 @@ class WebServer():
 			self.tmpFile = tempfile.NamedTemporaryFile(suffix=".exe",delete=False)
 			self.tmpFile.write(f)
 			self.tmpFile.close()
-			if self.debug >1: print "[W] File uploaded to:",self.tmpFile.name
+			if self.debug >1: print("[W] File uploaded to:",self.tmpFile.name)
 			return self.tmpFile
 	
 		def fileRun(self,session,port):
@@ -144,21 +144,21 @@ class WebServer():
 				os.system(('chmod +x %s' % f.name))
 			import subprocess
 			session['SocksProcess']=subprocess.Popen([f.name,str(port)])
-			if self.debug >1: print "[W] Executing file",f.name
+			if self.debug >1: print("[W] Executing file",f.name)
 
 		def handle_request(self):
 			bufferSize=self.bufferSize
 			self.resp_headers = {"Content-type":'application/oclet-stream'}
 			
 			#Get cookie parameters
-			self.cookie=Cookie.SimpleCookie()
+			self.cookie=http.cookies.SimpleCookie()
 			
-			if self.headers.has_key('cookie'):
-				self.cookie=Cookie.SimpleCookie(self.headers.getheader("cookie"))
+			if 'cookie' in self.headers:
+				self.cookie=http.cookies.SimpleCookie(self.headers.getheader("cookie"))
 			#Get URL parameters
 			url_param = dict(parse_qsl(urlparse(self.path).query,keep_blank_values=True))
 			
-			if self.debug > 2: print "[+] url parameters:",url_param
+			if self.debug > 2: print("[+] url parameters:",url_param)
 			#Handle requests
 			if url_param.get('proxy') == '':
 				session=self.Session()
@@ -169,7 +169,7 @@ class WebServer():
 					if url_param.get('upload') == '':
 						session['file']=self.fileUpload()
 					else:
-						print "[-] Wrong Parameters (?)\n\t", url_param
+						print("[-] Wrong Parameters (?)\n\t", url_param)
 					self.send()
 					return
 				
@@ -186,7 +186,7 @@ class WebServer():
 				if url_param.get('socks') == '':
 					session["socks"]=True
 		
-				if self.debug > 2: print "[+] url parameters:",url_param
+				if self.debug > 2: print("[+] url parameters:",url_param)
 				
 				if session.get("running") == None:	#new session
 					session["running"]=0
@@ -213,7 +213,7 @@ class WebServer():
 								sock=session["socket"]
 								session["running"]=1
 								self.send("[OK] Proxy") #will proxy
-								print "[+] Socket Connected To SocksProxy", sock.getpeername()
+								print("[+] Socket Connected To SocksProxy", sock.getpeername())
 							else:					#Legacy connection
 								if url_param.get('ip') and url_param.get('port'):
 									sock.connect((url_param.get('ip'), int(url_param.get('port')))) 
@@ -221,13 +221,13 @@ class WebServer():
 									session["socket"]=sock
 									session["running"]=1
 									self.send("[OK]")	
-									print "[+] Socket Connected", sock.getpeername(), sock
+									print("[+] Socket Connected", sock.getpeername(), sock)
 								else:
-									print "[-] Missing Parameters to connect:", url_param
+									print("[-] Missing Parameters to connect:", url_param)
 									self.send(("[-] Missing Parameters to connect: %s" % url_param),500)
-						except Exception, e:
-							self.send('[-] something\'s wrong with %s.\n\t Exception type is: %s' % (url_param, `e`))
-							print "Exception:",session,e
+						except Exception as e:
+							self.send('[-] something\'s wrong with %s.\n\t Exception type is: %s' % (url_param, repr(e)))
+							print("Exception:",session,e)
 					else:	#running	
 						sock = socket.socket()
 						sock = session.get("socket")
@@ -245,12 +245,12 @@ class WebServer():
 						except socket.error:
 							self.send()
 							
-				if self.debug > 3: print "[debug] Session:", session
+				if self.debug > 3: print("[debug] Session:", session)
 			else:
 				self.send("Tunna v1.1a") #Version 1.1a
 
 		def log_message(self, format, *args):
-			if self.debug > 2: print ("[W] %s - - [%s] %s" % (self.address_string(),self.log_date_time_string(),format%args))
+			if self.debug > 2: print(("[W] %s - - [%s] %s" % (self.address_string(),self.log_date_time_string(),format%args)))
 
 		def startSocks(self,session):
 			#Create a Random port	
@@ -261,11 +261,11 @@ class WebServer():
 			
 			if 'file' in session: #if file exists run file (used mainly for testing)
 				f=session['file']
-				if self.debug > 3: print "[Debug] starting socks executable"
+				if self.debug > 3: print("[Debug] starting socks executable")
 				#./Uploaded Executable random_port
 				self.fileRun(session,SocksServerSocket.getsockname()[1])
 			else:	#else start proxy in thread
-				if self.debug > 3: print "[Debug] starting internal socks"
+				if self.debug > 3: print("[Debug] starting internal socks")
 				event = threading.Event()
 				event.clear()	
 				
@@ -275,7 +275,7 @@ class WebServer():
 				SocksThread.setDaemon(1)				#will exit if main exits
 				SocksThread.start()
 				
-				if self.debug > 3: print "[Debug] waiting for event"
+				if self.debug > 3: print("[Debug] waiting for event")
 				event.wait() 
 				
 				session['SocksThread'] = SocksThread
@@ -288,7 +288,7 @@ class WebServer():
 			
 		def Session(self):
 			sessions=self.sessions
-			if self.cookie.has_key("sessionId"):
+			if "sessionId" in self.cookie:
 				sessionId=self.cookie["sessionId"].value
 
 				if sessions.get(sessionId): return sessions.get(sessionId)
@@ -303,7 +303,7 @@ class WebServer():
 		
 		def invalidateSession(self):
 			sessions=self.sessions
-			if self.cookie.has_key("sessionId"):
+			if "sessionId" in self.cookie:
 				sessionId=self.cookie["sessionId"].value
 				del sessions[sessionId]
 		
@@ -312,19 +312,19 @@ class WebServer():
 			session["running"]=-1
 			try:
 				if 'SocksProcess' in session:
-					if self.debug > 1: print "[-] Killing process", session['SocksProcess'].pid
+					if self.debug > 1: print("[-] Killing process", session['SocksProcess'].pid)
 					session['SocksProcess'].kill()
 				if 'file' in session:
-					if self.debug > 1: print "[-] Removing File", session['file'].name
+					if self.debug > 1: print("[-] Removing File", session['file'].name)
 					os.remove(session['file'].name)
 				if 'SocksThread' in session:
-					if self.debug > 1: print "[-] Killing Socks Thread"
+					if self.debug > 1: print("[-] Killing Socks Thread")
 					if hasattr(self,'socksServer'):	del self.socksServer
 					t=session['SocksThread']
 					t._Thread__stop()
 					t.join()
-			except Exception, e:
-				print "[-]", e
+			except Exception as e:
+				print("[-]", e)
 			channel = socket.socket()
 			channel = session.get("socket")
 			if channel: 
@@ -336,24 +336,24 @@ class WebServer():
 			return
 					
 def banner():
-	print " _______                   __          __  _     _____                          "
-	print "|__   __|                  \\ \\        / / | |   / ____|                         "
-	print "   | |_   _ _ __  _ __   __ \\ \\  /\\  / /__| |__| (___   ___ _ ____   _____ _ __ "
-	print "   | | | | | '_ \\| '_ \\ / _` \\ \\/  \\/ / _ \\ '_ \\\\___ \\ / _ \\ '__\\ \\ / / _ \\ '__|"
-	print "   | | |_| | | | | | | | (_| |\\  /\\  /  __/ |_) |___) |  __/ |   \\ V /  __/ |   "
-	print "   |_|\\__,_|_| |_|_| |_|\\__,_| \\/  \\/ \\___|_.__/_____/ \\___|_|    \\_/ \\___|_|   "
-	print ""
+	print(" _______                   __          __  _     _____                          ")
+	print("|__   __|                  \\ \\        / / | |   / ____|                         ")
+	print("   | |_   _ _ __  _ __   __ \\ \\  /\\  / /__| |__| (___   ___ _ ____   _____ _ __ ")
+	print("   | | | | | '_ \\| '_ \\ / _` \\ \\/  \\/ / _ \\ '_ \\\\___ \\ / _ \\ '__\\ \\ / / _ \\ '__|")
+	print("   | | |_| | | | | | | | (_| |\\  /\\  /  __/ |_) |___) |  __/ |   \\ V /  __/ |   ")
+	print("   |_|\\__,_|_| |_|_| |_|\\__,_| \\/  \\/ \\___|_.__/_____/ \\___|_|    \\_/ \\___|_|   ")
+	print("")
 
-	print  "TunnaWebServer v1.1a, for HTTP tunneling TCP connections by Nikos Vassakis"
-	print  "http://www.secforce.com / nikos.vassakis <at> secforce.com"
-	print "###############################################################"
-	print ""
+	print("TunnaWebServer v1.1a, for HTTP tunneling TCP connections by Nikos Vassakis")
+	print("http://www.secforce.com / nikos.vassakis <at> secforce.com")
+	print("###############################################################")
+	print("")
 
 def usage():
 	#TODO: argparse
-	print "Usage:"
-	print "\t webserver.py -r <hostname:Port>"
-	print "    --ssl:		for SSL server"
+	print("Usage:")
+	print("\t webserver.py -r <hostname:Port>")
+	print("    --ssl:		for SSL server")
 
 if __name__ == '__main__':
 	banner()
@@ -383,7 +383,7 @@ if __name__ == '__main__':
 		usage()
 		sys.exit(2)
 	else:
-		options=dict(Defaults.items() + options.items()) if options else Defaults
+		options=dict(list(Defaults.items()) + list(options.items())) if options else Defaults
 		try:
 			WebServer(options)
 		except KeyboardInterrupt:

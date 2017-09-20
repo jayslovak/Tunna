@@ -1,15 +1,15 @@
 #Tunna v1.1a
 import select
-import urllib2, ssl
-import cookielib
-import gzip, zlib, StringIO
+import urllib.request, urllib.error, urllib.parse, ssl
+import http.cookiejar
+import gzip, zlib, io
 from time import time, sleep, asctime
-import threading, thread
+import threading, _thread
 import socket
 import getopt, sys, os
 import random,string
 
-from SocksClient import SocksClient
+from .SocksClient import SocksClient
 
 DEBUG=0
 
@@ -32,9 +32,9 @@ class TunnaClient():
 			self.http=self.HTTPwrapper(self.url,self.options)
 			self.mutex_http_req = threading.Lock()
 			pings=0
-		except Exception, e:
-			print "[-]",e
-			print "[-] Error Setting Up Tunnel"
+		except Exception as e:
+			print("[-]",e)
+			print("[-] Error Setting Up Tunnel")
 			raise
 		sleep(1)
 
@@ -46,7 +46,7 @@ class TunnaClient():
 			self.pt.start()
 
 	def Pinging_Thread(self):
-		print "[+] Starting Ping thread"
+		print("[+] Starting Ping thread")
 		#self.ptc=threading.Condition()
 		wait=True
 		p=0.1
@@ -72,16 +72,16 @@ class TunnaClient():
 					wait=True
 			except:
 				self.TunnaSocket.close()
-				thread.exit()
+				_thread.exit()
 			finally:
 				self.mutex_http_req.release()
-		print "[-] Pinging Thread Exited"
+		print("[-] Pinging Thread Exited")
 		#Unrecoverable
-		thread.interrupt_main()		#Interupt main thread -> exits
+		_thread.interrupt_main()		#Interupt main thread -> exits
 
 	def startIfProxy(self):
 		forceProxy=True
-		print "[+] Checking for proxy:",self.http.hasProxy
+		print("[+] Checking for proxy:",self.http.hasProxy)
 		if self.http.hasProxy and self.options['useSocks']:
 			#If has proxy bind Tunna to random port & Proxy to Local_port
 			self.event=threading.Event() 	#Receives Event when SocksClient is ready
@@ -91,7 +91,7 @@ class TunnaClient():
 			self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.server.bind((self.options['bind'],0))
 
-			print "[+] Starting Socket Server"
+			print("[+] Starting Socket Server")
 			S=SocksClient(self.local_port)
 
 			SocksThread = threading.Thread(name='SocksThread', target=S.connect, args=(self.server.getsockname()[1],self.event))
@@ -123,13 +123,13 @@ class TunnaClient():
 					else:
 						self.TunnaSocket, address = self.server.accept()
 						self.init_ping_thread(self.start_p_thread)
-						print "[T] Connected To Socks: ", self.TunnaSocket.getpeername()
+						print("[T] Connected To Socks: ", self.TunnaSocket.getpeername())
 						sockets.append(self.TunnaSocket)
 
 				elif s == self.TunnaSocket:	# Receive response
 					self.data = self.TunnaSocket.recv(self.bufferSize)	#Read socket
 					if len(self.data)==0:
-						print "[-] Client Disconnected"
+						print("[-] Client Disconnected")
 						self.TunnaSocket.close()
 						sockets.remove(self.TunnaSocket)
 						self.handle_close()
@@ -148,7 +148,8 @@ class TunnaClient():
 								if self.verbose: self.http.v_print(received_d=len(resp_data))
 								self.TunnaSocket.send(resp_data)				#Write data to socket
 								resp_data=""						#clear data
-						except socket.error, (errno, e):
+						except socket.error as xxx_todo_changeme:
+							(errno, e) = xxx_todo_changeme.args
 							self.TunnaSocket.close()
 						finally:
 							self.mutex_http_req.release()
@@ -160,21 +161,21 @@ class TunnaClient():
 							self.ptc.release()
 
 			for s in exceptready: #TODO?
-				print "[-] Unhandled Socket Exception"
+				print("[-] Unhandled Socket Exception")
 
 	def handle_close(self):			#Client disconnected
-		thread.interrupt_main()
+		_thread.interrupt_main()
 
 	def __del__(self):
 		if hasattr(self, 'pt'):
 				self.pt._Thread__stop()	#Stop socket thread and exit
 		if hasattr(self, 'http'):
-			print self.http.HTTPreq(self.url+"&close")
+			print(self.http.HTTPreq(self.url+"&close"))
 			self.http.__del__()
-		print "[-] Disconnected"
+		print("[-] Disconnected")
 
 	class HTTPwrapper:
-		cj = cookielib.CookieJar()
+		cj = http.cookiejar.CookieJar()
 		hasProxy=False
 		needsFile=False
 		def __init__(self, url , options):
@@ -199,45 +200,45 @@ class TunnaClient():
 					if "[PROXY]" in resp:
 						self.hasProxy=True
 					elif "[FILE]" in resp:
-						print "[+] Sending File"
+						print("[+] Sending File")
 						self.hasProxy=True
 						if "[WIN]" in resp:
 							(headers,data)=self.multipart_upload_file(self.options['ProxyFileWin'])
-							print self.HTTPreq((self.url+"&file&upload"),data,headers)
+							print(self.HTTPreq((self.url+"&file&upload"),data,headers))
 						elif "[LINUX]" in resp:
 							(headers,data)=self.multipart_upload_file(self.options['ProxyFilePy'])
-							print self.HTTPreq((self.url+"&file&upload"),data,headers)
+							print(self.HTTPreq((self.url+"&file&upload"),data,headers))
 						else:
-							print "[-] Unknown server OS"
+							print("[-] Unknown server OS")
 
 				#2nd request: send connection options to webshell - In php this thread will stall
 				self.t = threading.Thread(target=self.Threaded_request, args=(remote_port,remote_ip,self.options['useSocks']))
 				self.t.start()		#start the thread
 
-			except Exception, e:
-				print "[-] Error:",e
-				thread.interrupt_main()
+			except Exception as e:
+				print("[-] Error:",e)
+				_thread.interrupt_main()
 			sleep(2)
 
 		def buildOpener(self):
-			handler=[urllib2.HTTPCookieProcessor(self.cj)]
+			handler=[urllib.request.HTTPCookieProcessor(self.cj)]
 			if self.options['upProxy']:# in self.options:
 				if self.options['upProxyAuth']:# in self.options:
 					for h in self.options['upProxyAuth']:
 						handler.append(h)
 				else:
 					if 'http://' in self.options['upProxy']:
-						handler.append(urllib2.ProxyHandler({'http':self.options['upProxy']}))
+						handler.append(urllib.request.ProxyHandler({'http':self.options['upProxy']}))
 					else:
-						handler.append(urllib2.ProxyHandler({'https':self.options['upProxy']}))
+						handler.append(urllib.request.ProxyHandler({'https':self.options['upProxy']}))
 
 			if self.options['ignoreServerCert']:
 				ctx = ssl.create_default_context()
 				ctx.check_hostname = False
 				ctx.verify_mode = ssl.CERT_NONE
-				handler.append(urllib2.HTTPSHandler(context=ctx))
+				handler.append(urllib.request.HTTPSHandler(context=ctx))
 
-			opener = urllib2.build_opener(*handler)
+			opener = urllib.request.build_opener(*handler)
 
 			opener.addheaders = [('Accept-encoding', 'gzip')]
 			self.opener = opener
@@ -258,20 +259,20 @@ class TunnaClient():
 				kargs['headers'].update({'Authorization': "Basic %s" % self.bauth})
 
 			#Make Request
-			f=opener.open(urllib2.Request(**kargs))
+			f=opener.open(urllib.request.Request(**kargs))
 
 			#If response is gzip encoded
-			if ('Content-Encoding' in f.info().keys() and f.info()['Content-Encoding']=='gzip') or \
-				('content-encoding' in f.info().keys() and f.info()['content-encoding']=='gzip'):
-				url_f = StringIO.StringIO(f.read())
+			if ('Content-Encoding' in list(f.info().keys()) and f.info()['Content-Encoding']=='gzip') or \
+				('content-encoding' in list(f.info().keys()) and f.info()['content-encoding']=='gzip'):
+				url_f = io.StringIO(f.read())
 				data = gzip.GzipFile(fileobj=url_f).read()
 			else:	#response not encoded
 				data = f.read()
 
 			if f.getcode() != 200:
-				print "[-] Received status code " + str(f.getcode())
-				print data
-				thread.interrupt_main()
+				print("[-] Received status code " + str(f.getcode()))
+				print(data)
+				_thread.interrupt_main()
 			return  data	#Return response
 
 		def Threaded_request(self, remote_port,remote_ip=None, socks=True):
@@ -279,7 +280,7 @@ class TunnaClient():
 			#In php this thread will stall to keep the connection alive (will not receive response)
 			#In other webshells [OK] is received
 
-			print '[+] Spawning keep-alive thread'
+			print('[+] Spawning keep-alive thread')
 			#set up options
 			url=self.url+"&port="+str(remote_port)
 			if remote_ip:	url+="&ip="+str(remote_ip)
@@ -288,11 +289,11 @@ class TunnaClient():
 			resp = self.HTTPreq(url).decode()
 
 			if (resp[:4] == '[OK]'):	#If ok is received (non-php webshell): Thread not needed
-				print '[-] Keep-alive thread not required'
+				print('[-] Keep-alive thread not required')
 			else:					#if ok/proxy is not received something went wrong (if nothing is received: it's a PHP webshell)
-				print resp
-				print '[-] Keep-alive thread exited'
-				thread.interrupt_main()
+				print(resp)
+				print('[-] Keep-alive thread exited')
+				_thread.interrupt_main()
 
 		def multipart_upload_file(self,filename):
 			rand = ''.join([random.choice("0123456789") for i in range(10)])	#random_string (10)

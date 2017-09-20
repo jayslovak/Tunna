@@ -11,10 +11,10 @@
 #Tested with Python 2.6.5
 
 from time import time, sleep, asctime
-import threading, thread
+import threading, _thread
 import optparse
 import sys
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from base64 import b64encode
 from lib.TunnaClient import TunnaClient
 
@@ -23,17 +23,17 @@ from settings import Tunna_Defaults as Defaults
 DEBUG=0
 
 def banner():
-	print "  _____                        "
-	print " |_   _|   _ _ __  _ __   __ _ "
-	print "   | || | | | '_ \\| '_ \\ / _` |"
-	print "   | || |_| | | | | | | | (_| |"
-	print "   |_| \\__,_|_| |_|_| |_|\\__,_|"
-	print ""
+	print("  _____                        ")
+	print(" |_   _|   _ _ __  _ __   __ _ ")
+	print("   | || | | | '_ \\| '_ \\ / _` |")
+	print("   | || |_| | | | | | | | (_| |")
+	print("   |_| \\__,_|_| |_|_| |_|\\__,_|")
+	print("")
 
-	print  "Tunna v1.1a, for HTTP tunneling TCP connections by Nikos Vassakis"
-	print  "http://www.secforce.com / nikos.vassakis <at> secforce.com"
-	print "###############################################################"
-	print ""
+	print("Tunna v1.1a, for HTTP tunneling TCP connections by Nikos Vassakis")
+	print("http://www.secforce.com / nikos.vassakis <at> secforce.com")
+	print("###############################################################")
+	print("")
 
 def main():
 	banner()
@@ -69,7 +69,7 @@ def main():
 
 	(args, opts) = parser.parse_args()
 
-	options=dict(Defaults.items() + vars(args).items()) if args else Defaults	#If missing options use Default
+	options=dict(list(Defaults.items()) + list(vars(args).items())) if args else Defaults	#If missing options use Default
 
 	if options['remote_port']:
 		options['useSocks']=False
@@ -81,28 +81,28 @@ def main():
 		parser.print_help()
 		parser.error("Missing URL")
 	if options['upProxyAuth']:	#Upstream Proxy requires authentication
-		username=raw_input("Proxy Authentication\nUsername:")
+		username=input("Proxy Authentication\nUsername:")
 		from getpass import getpass
 		passwd=getpass("Password:")
 
 		if not options['upProxy']:
 			parser.error("Missing Proxy URL")
 		else:
-			from urlparse import urlparse
+			from urllib.parse import urlparse
 			u=urlparse(options['upProxy'])
 			prx="%s://%s:%s@%s" % (u.scheme,username,passwd,u.netloc)
 
-			password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+			password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
 			password_mgr.add_password(None,prx,username,passwd)
 
-			proxy_handler = urllib2.ProxyHandler({u.scheme:prx})
-			proxy_basic_handler = urllib2.ProxyBasicAuthHandler(password_mgr)
-			proxy_digest_handler = urllib2.ProxyDigestAuthHandler(password_mgr)
+			proxy_handler = urllib.request.ProxyHandler({u.scheme:prx})
+			proxy_basic_handler = urllib.request.ProxyBasicAuthHandler(password_mgr)
+			proxy_digest_handler = urllib.request.ProxyDigestAuthHandler(password_mgr)
 
 			options['upProxyAuth']=[proxy_handler,proxy_basic_handler,proxy_digest_handler]
 	if not options['bauth'] == 'no':            # Basic authentication
 		if options['bauth'] == '-':
-			username=raw_input("Basic Authentication\nUsername:")
+			username=input("Basic Authentication\nUsername:")
 			from getpass import getpass
 			passwd=getpass("Password:")
 		else:
@@ -119,10 +119,10 @@ def main():
 			sleep(10)
 
 	except (KeyboardInterrupt, SystemExit) as e:
-		print '[!] Received Interrupt or Something Went Wrong'
+		print('[!] Received Interrupt or Something Went Wrong')
 		if DEBUG > 0:
 			import traceback
-			print traceback.format_exc()
+			print(traceback.format_exc())
 
 		if 'T' in locals():
 			T.__del__()
@@ -131,8 +131,8 @@ def main():
 	except Exception as e:
 		if DEBUG > 0:
 			import traceback
-			print traceback.format_exc()
-		print "General Exception:",e
+			print(traceback.format_exc())
+		print("General Exception:",e)
 
 def startTunna(options):
 	T=TunnaClient(options)

@@ -15,7 +15,7 @@ import select
 import sys 
 import time
 import getopt, struct
-import threading, thread
+import threading, _thread
 
 from settings import SocksServer_Defaults as Defaults
 
@@ -34,7 +34,7 @@ class SocksClient():	#TODO init:options
 
 		self.debug = DEBUG
 
-		print "[S] ",asctime(), "Server Starts - %s:%s" % ((hostname if hostname!='' else 'localhost'), portnumber)	
+		print("[S] ",asctime(), "Server Starts - %s:%s" % ((hostname if hostname!='' else 'localhost'), portnumber))	
 		
 		self.wrapper_channel = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.wrapper_channel.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -45,8 +45,8 @@ class SocksClient():	#TODO init:options
 		try:
 			self.wrapper_channel.connect(('localhost', TunnaPort)) 
 			success=True
-		except Exception, e:
-			print 'something\'s wrong Exception type is %s' % `e`
+		except Exception as e:
+			print('something\'s wrong Exception type is %s' % repr(e))
 			sys.exit()
 
 		self.iserver(self.server, self.wrapper_channel)
@@ -58,7 +58,7 @@ class SocksClient():	#TODO init:options
 		try:
 			data = s.recv(size)
 			while len(data) < size and data:
-				if self.debug >1: print len(data) , size
+				if self.debug >1: print(len(data) , size)
 				data += s.recv((size-len(data)))
 			return data
 		except socket.error as e:	#Socket error
@@ -68,7 +68,7 @@ class SocksClient():	#TODO init:options
 			pass
 
 	def printError(self,e):
-		print '\033[91m',e,'\033[0m'
+		print('\033[91m',e,'\033[0m')
 
 	def srcPort(self,s):
 		return s.getpeername()[1]
@@ -85,13 +85,13 @@ class SocksClient():	#TODO init:options
 
 			for s in inputready: 
 				try:
-					if debug > 1: print "[+] Open Sockets: ",len(sockets)-1
+					if debug > 1: print("[+] Open Sockets: ",len(sockets)-1)
 					if s == local_proxy_server: # Accept client connections
 						# handle the server socket 
 						client, address = self.server.accept() 
 						SocketDict[self.srcPort(client)]=client
 						sockets.append(client)
-						if debug > 1: print "Accepted Client lSrc: "+str(self.srcPort(client))
+						if debug > 1: print("Accepted Client lSrc: "+str(self.srcPort(client)))
 
 					elif s == wrapper_channel:	# Receive response 
 						head = self.sockReceive(s,4)
@@ -100,18 +100,18 @@ class SocksClient():	#TODO init:options
 						except struct.error as e:
 							pass						
 						
-						if debug > 2: print "< R received ", "lSrc: ", lSrc, "size: ", size
+						if debug > 2: print("< R received ", "lSrc: ", lSrc, "size: ", size)
 
 						if size > 0:
 							data = self.sockReceive(s,size)
 								
 							if lSrc in SocketDict:
-								if debug > 2: print "\t relaying to lSrc: ", lSrc, 'len', len(data)
+								if debug > 2: print("\t relaying to lSrc: ", lSrc, 'len', len(data))
 								SocketDict[lSrc].send(data)
 							else:
-								if debug > 2: print "\t Received response for unknown port " , str(lSrc) , len(data)
+								if debug > 2: print("\t Received response for unknown port " , str(lSrc) , len(data))
 						else:
-								if debug > 2: print "\t Closing Socket: ", lSrc
+								if debug > 2: print("\t Closing Socket: ", lSrc)
 								SocketDict[lSrc].close()
 								sockets.remove(SocketDict[lSrc])
 								del SocketDict[lSrc]
@@ -120,21 +120,22 @@ class SocksClient():	#TODO init:options
 						lSrc=self.srcPort(s)
 						data = s.recv(self.bufferSize)
 							
-						if debug > 2: print "> L Received Data (client -",lSrc,") :" , len(data)
+						if debug > 2: print("> L Received Data (client -",lSrc,") :" , len(data))
 						if len(data)>0 and data: 
 							data = struct.pack('!HH', self.srcPort(s),len(data)) + data
-							if debug > 2: print  "\t sending: ",len(data),"\tstruct:", struct.pack('!HH', self.srcPort(s),len(data))
+							if debug > 2: print("\t sending: ",len(data),"\tstruct:", struct.pack('!HH', self.srcPort(s),len(data)))
 							wrapper_channel.send(data) 
 						if len(data)==0: 
-							if debug > 2: print "\t No data: Closing Socket: ", self.srcPort(s)
+							if debug > 2: print("\t No data: Closing Socket: ", self.srcPort(s))
 							data = struct.pack('!HH', self.srcPort(s),len(data))
-							if debug > 2: print  "\t sending: ",len(data),"\tstruct:", struct.pack('!HH', self.srcPort(s),len(data))
+							if debug > 2: print("\t sending: ",len(data),"\tstruct:", struct.pack('!HH', self.srcPort(s),len(data)))
 							wrapper_channel.send(data) 
 							if s in sockets: 
 								del SocketDict[self.srcPort(s)]
 								sockets.remove(s)
 								s.close()	
-				except socket.error, (errno, e):# socket.error, KeyError:
+				except socket.error as xxx_todo_changeme:# socket.error, KeyError:
+					(errno, e) = xxx_todo_changeme.args# socket.error, KeyError:
 					if errno != 107:
 						self.printError(e)
 					if errno == 107:
